@@ -1,0 +1,1866 @@
+openapi: 3.0.3
+info:
+  title: Klarwatt
+  version: 0.1.0
+  description: >-
+    Front-office resolution layer for EU energy retailers. Contacts are resolved
+    against the customer's own metering data inside a declared regulated role, a
+    lawful purpose, and a metering granularity ceiling; arrears, disconnection,
+    medical-dependency, and safeguarding signals transfer unwaivably to a human; and
+    every automated capability runs inside a cohort with a scale-or-stop decision date
+    measured on cost per resolved contact together with first-contact resolution and
+    complaint rate.
+  x-product-slug: ai-energy-klarwatt
+  x-source: ai-in-energy/Accenture-ai-for-eu-utilities-WKaastra-transcript/
+servers:
+  - url: https://api.example.com
+tags:
+  - name: Contacts
+    description: Omnichannel contact intake, regulated role resolution, and intents
+  - name: Consumption
+    description: Bill and usage change decomposition and estimated read reconciliation
+  - name: Consent
+    description: Lawful purposes, metering granularity ceilings, and consent records
+  - name: Vulnerability
+    description: Protected-customer detection and mandatory human escalation
+  - name: Resolutions
+    description: Policy-bounded outcomes including payment plans and network referrals
+  - name: Advice
+    description: Energy management recommendations with savings estimates
+  - name: Complaints
+    description: Complaint recognition inside automated conversations and clocks
+  - name: Cohorts
+    description: Pilot cohorts, comparison groups, and scale-or-stop decisions
+  - name: Compliance
+    description: Unbundling checks, release control, and ombudsman evidence packs
+paths:
+  /v1/contacts:
+    post:
+      operationId: openContactSession
+      tags: [Contacts]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactSessionCreate"
+      responses:
+        "201":
+          description: Session opened with account, meter point, and regulated role resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeContactSession"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      operationId: listContactSessions
+      tags: [Contacts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [resolved, escalated, abandoned, blocked_by_policy]
+        - name: channel
+          in: query
+          schema:
+            $ref: "#/components/schemas/Channel"
+      responses:
+        "200":
+          description: Contact sessions page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeContactSession"
+  /v1/contacts/{sessionId}:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      operationId: getContactSession
+      tags: [Contacts]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Session with role, purpose, data used, and pinned release version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeContactSession"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/contacts/{sessionId}/intents:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: classifyContactIntent
+      tags: [Contacts]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [utterance]
+              properties:
+                utterance:
+                  type: string
+      responses:
+        "200":
+          description: Intent classified within the purpose and granularity envelope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeIntent"
+  /v1/contacts/{sessionId}/handover:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: escalateToAdvisor
+      tags: [Contacts]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum:
+                    - vulnerability_gate
+                    - outside_policy
+                    - low_confidence
+                    - customer_request
+                    - unbundling_block
+                    - data_unavailable
+                targetQueue:
+                  type: string
+      responses:
+        "200":
+          description: Escalation dispatched with conversation, data used, and reason
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeEscalationEvent"
+  /v1/contacts/{sessionId}/advisor-correction:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      operationId: recordAdvisorCorrection
+      tags: [Contacts]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wasExplanationCorrect, advisorReference]
+              properties:
+                wasExplanationCorrect:
+                  type: boolean
+                advisorReference:
+                  type: string
+                correctExplanation:
+                  type: string
+                suspectedDataDefect:
+                  type: boolean
+      responses:
+        "200":
+          description: Correction recorded; incorrect explanations leave resolution metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeContactSession"
+  /v1/accounts/{accountId}/context:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    get:
+      operationId: getAccountContext
+      tags: [Contacts]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: purposeId
+          in: query
+          required: true
+          description: Lawful purpose under which the context is read
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Account, meter points, tariff, and reads within the purpose ceiling
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeAccountContext"
+        "403":
+          description: Purpose does not permit reading this context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/consumption/explanations:
+    post:
+      operationId: explainConsumptionChange
+      tags: [Consumption]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumptionExplanationRequest"
+      responses:
+        "200":
+          description: Quantified driver decomposition in plain language
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeConsumptionExplanation"
+        "403":
+          description: Requested granularity exceeds the purpose ceiling without consent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/consumption/estimated-read-corrections:
+    get:
+      operationId: listEstimatedReadCorrections
+      tags: [Consumption]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: meterPointId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Estimated versus actual read corrections affecting bills
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeEstimatedReadCorrection"
+  /v1/consumption/data-defects:
+    post:
+      operationId: raiseDataDefectReport
+      tags: [Consumption]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataDefectReportCreate"
+      responses:
+        "201":
+          description: Metering data defect raised to billing operations as a work item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDataDefectReport"
+  /v1/consent/purposes:
+    get:
+      operationId: listDataPurposes
+      tags: [Consent]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Lawful purposes with their metering granularity ceilings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDataPurpose"
+  /v1/consent/records:
+    get:
+      operationId: listConsentRecords
+      tags: [Consent]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Consent records for the account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeConsentRecord"
+    post:
+      operationId: captureConsent
+      tags: [Consent]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentRecordCreate"
+      responses:
+        "201":
+          description: Consent captured for a purpose and granularity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeConsentRecord"
+  /v1/consent/records/{consentId}/withdrawal:
+    parameters:
+      - $ref: "#/components/parameters/ConsentId"
+    post:
+      operationId: withdrawConsent
+      tags: [Consent]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Consent withdrawn and effective from the next interaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeConsentRecord"
+  /v1/vulnerability/flags:
+    get:
+      operationId: listVulnerabilityFlags
+      tags: [Vulnerability]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/VulnerabilityCategory"
+      responses:
+        "200":
+          description: Raised vulnerability flags and their escalation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeVulnerabilityFlag"
+    post:
+      operationId: raiseVulnerabilityFlag
+      tags: [Vulnerability]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VulnerabilityFlagCreate"
+      responses:
+        "201":
+          description: Flag raised; automated outcome proposals are blocked immediately
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeVulnerabilityFlag"
+  /v1/vulnerability/gate-policy:
+    get:
+      operationId: getVulnerabilityGatePolicy
+      tags: [Vulnerability]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Categories that force human handling; these are not configurable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeVulnerabilityGatePolicy"
+  /v1/resolutions:
+    post:
+      operationId: executeResolution
+      tags: [Resolutions]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolutionActionCreate"
+      responses:
+        "201":
+          description: Resolution executed against the relevant system of record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeResolutionAction"
+        "403":
+          description: Resolution falls outside approved policy or a vulnerability flag is open
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/resolutions/payment-plans:
+    post:
+      operationId: proposePaymentPlan
+      tags: [Resolutions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentPlanProposal"
+      responses:
+        "201":
+          description: Plan proposed within affordability policy by a human advisor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePaymentPlan"
+        "403":
+          description: Payment plans may not be proposed by an automated agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/advice/recommendations:
+    get:
+      operationId: listAdviceRecommendations
+      tags: [Advice]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Recommendations with savings estimate and stated confidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeAdviceRecommendation"
+  /v1/complaints:
+    post:
+      operationId: recogniseComplaint
+      tags: [Complaints]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplaintCaseCreate"
+      responses:
+        "201":
+          description: Complaint logged with the regulatory clock started at utterance time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeComplaintCase"
+    get:
+      operationId: listComplaints
+      tags: [Complaints]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: raisedIn
+          in: query
+          schema:
+            type: string
+            enum: [automated_conversation, advisor_contact]
+      responses:
+        "200":
+          description: Complaint cases page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeComplaintCase"
+  /v1/cohorts:
+    get:
+      operationId: listPilotCohorts
+      tags: [Cohorts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [running, awaiting_decision, scaled, stopped]
+      responses:
+        "200":
+          description: Cohorts with comparison groups and decision dates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopePilotCohort"
+    post:
+      operationId: createPilotCohort
+      tags: [Cohorts]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PilotCohortCreate"
+      responses:
+        "201":
+          description: Cohort created with a comparison group and scale-or-stop date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePilotCohort"
+  /v1/cohorts/{cohortId}/metrics:
+    parameters:
+      - $ref: "#/components/parameters/CohortId"
+    get:
+      operationId: getCohortMetrics
+      tags: [Cohorts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: weatherAdjusted
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Cost per resolved contact with first-contact resolution and complaint rate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCohortMetric"
+  /v1/cohorts/{cohortId}/decision:
+    parameters:
+      - $ref: "#/components/parameters/CohortId"
+    post:
+      operationId: decideCohortOutcome
+      tags: [Cohorts]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, decidedBy, rationale]
+              properties:
+                outcome:
+                  type: string
+                  enum: [scale, stop, extend]
+                decidedBy:
+                  type: string
+                rationale:
+                  type: string
+      responses:
+        "200":
+          description: Scale or stop decision recorded; stopping is an expected outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePilotCohort"
+  /v1/compliance/unbundling-checks:
+    get:
+      operationId: listUnbundlingChecks
+      tags: [Compliance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: verdict
+          in: query
+          schema:
+            type: string
+            enum: [permitted, blocked]
+      responses:
+        "200":
+          description: Recorded checks of data use against the declared regulated role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeUnbundlingCheck"
+  /v1/compliance/releases:
+    get:
+      operationId: listAutomationReleases
+      tags: [Compliance]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Versioned capability releases with named approvers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeAutomationRelease"
+    post:
+      operationId: approveAutomationRelease
+      tags: [Compliance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationReleaseCreate"
+      responses:
+        "201":
+          description: Release approved and available for version pinning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeAutomationRelease"
+  /v1/compliance/evidence-packs:
+    post:
+      operationId: generateEvidencePack
+      tags: [Compliance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              properties:
+                sessionId:
+                  type: string
+                complaintCaseId:
+                  type: string
+      responses:
+        "201":
+          description: Ombudsman-ready pack with conversation, data used, and decisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeEvidencePack"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+    ConsentId:
+      name: consentId
+      in: path
+      required: true
+      schema:
+        type: string
+    CohortId:
+      name: cohortId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    ResponseMeta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: EUR
+    Channel:
+      type: string
+      enum: [voice, chat, mobile_app, web_form, email, sms]
+    RegulatedRole:
+      type: string
+      description: The licensed role the automated agent speaks in for this interaction
+      enum: [supplier, network_operator, affiliated_service_provider]
+    MeteringGranularity:
+      type: string
+      enum: [monthly_total, daily, hourly, half_hourly]
+    CustomerAccount:
+      type: object
+      required: [id, meterPointIds]
+      properties:
+        id:
+          type: string
+        meterPointIds:
+          type: array
+          items:
+            type: string
+        paymentMethod:
+          type: string
+          enum: [direct_debit, on_receipt, prepayment]
+        arrearsBalance:
+          $ref: "#/components/schemas/Money"
+        priorityServicesRegistered:
+          type: boolean
+    MeterPoint:
+      type: object
+      required: [id, commodity, meterType]
+      properties:
+        id:
+          type: string
+        commodity:
+          type: string
+          enum: [electricity, gas, heat]
+        meterType:
+          type: string
+          enum: [smart_interval, smart_daily, traditional]
+        networkOperatorId:
+          type: string
+        readSubmissionLag:
+          type: string
+          example: PT24H
+    TariffPlan:
+      type: object
+      required: [id, name, structure]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        structure:
+          type: string
+          enum: [fixed, variable, time_of_use, dynamic]
+        standingChargePerDay:
+          $ref: "#/components/schemas/Money"
+        unitRates:
+          type: array
+          items:
+            type: object
+            properties:
+              band:
+                type: string
+              pricePerKwh:
+                $ref: "#/components/schemas/Money"
+        networkChargePassThrough:
+          type: boolean
+        effectiveFrom:
+          type: string
+          format: date
+    MeterReading:
+      type: object
+      required: [meterPointId, readAt, valueKwh, readType]
+      properties:
+        meterPointId:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+        valueKwh:
+          type: number
+          format: double
+        readType:
+          type: string
+          enum: [actual, estimated, customer_submitted, deemed]
+        granularity:
+          $ref: "#/components/schemas/MeteringGranularity"
+    EstimatedReadCorrection:
+      type: object
+      required: [id, meterPointId, correctedAt]
+      properties:
+        id:
+          type: string
+        meterPointId:
+          type: string
+        estimatedValueKwh:
+          type: number
+          format: double
+        actualValueKwh:
+          type: number
+          format: double
+        billingPeriodsAffected:
+          type: array
+          items:
+            type: string
+        monetaryAdjustment:
+          $ref: "#/components/schemas/Money"
+        correctedAt:
+          type: string
+          format: date-time
+        disclosedToCustomer:
+          type: boolean
+    DataPurpose:
+      type: object
+      required: [id, name, lawfulBasis, maxGranularity]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: explain_bill_increase
+        lawfulBasis:
+          type: string
+          enum: [contract_performance, legal_obligation, legitimate_interest, consent]
+        maxGranularity:
+          $ref: "#/components/schemas/MeteringGranularity"
+        permittedRoles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegulatedRole"
+        retentionPeriod:
+          type: string
+          example: P6Y
+    ConsentRecord:
+      type: object
+      required: [id, accountId, purposeId, status, grantedGranularity]
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        purposeId:
+          type: string
+        status:
+          type: string
+          enum: [granted, withdrawn, expired]
+        grantedGranularity:
+          $ref: "#/components/schemas/MeteringGranularity"
+        capturedVia:
+          $ref: "#/components/schemas/Channel"
+        grantedAt:
+          type: string
+          format: date-time
+        withdrawnAt:
+          type: string
+          format: date-time
+        effectiveFromNextInteraction:
+          type: boolean
+    ConsentRecordCreate:
+      type: object
+      required: [accountId, purposeId, grantedGranularity]
+      properties:
+        accountId:
+          type: string
+        purposeId:
+          type: string
+        grantedGranularity:
+          $ref: "#/components/schemas/MeteringGranularity"
+        capturedVia:
+          $ref: "#/components/schemas/Channel"
+    AccountContext:
+      type: object
+      required: [account, meterPoints, granularityCeiling]
+      properties:
+        account:
+          $ref: "#/components/schemas/CustomerAccount"
+        meterPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeterPoint"
+        currentTariff:
+          $ref: "#/components/schemas/TariffPlan"
+        previousTariff:
+          $ref: "#/components/schemas/TariffPlan"
+        recentReadings:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeterReading"
+        granularityCeiling:
+          $ref: "#/components/schemas/MeteringGranularity"
+        purposeId:
+          type: string
+    ContactSessionCreate:
+      type: object
+      required: [channel, accountReference]
+      properties:
+        channel:
+          $ref: "#/components/schemas/Channel"
+        accountReference:
+          type: string
+        meterPointId:
+          type: string
+        declaredRole:
+          $ref: "#/components/schemas/RegulatedRole"
+        purposeId:
+          type: string
+        cohortId:
+          type: string
+    ContactSession:
+      type: object
+      required: [id, channel, regulatedRole, purposeId, outcome]
+      properties:
+        id:
+          type: string
+        channel:
+          $ref: "#/components/schemas/Channel"
+        accountId:
+          type: string
+        meterPointId:
+          type: string
+        regulatedRole:
+          $ref: "#/components/schemas/RegulatedRole"
+        purposeId:
+          type: string
+        granularityCeiling:
+          $ref: "#/components/schemas/MeteringGranularity"
+        outcome:
+          type: string
+          enum: [in_progress, resolved, escalated, abandoned, blocked_by_policy]
+        firstContactResolution:
+          type: boolean
+        dataUsed:
+          type: array
+          items:
+            type: string
+          description: Named data elements read during the interaction
+        releaseId:
+          type: string
+          description: Capability release version that served this interaction
+        cohortId:
+          type: string
+        explanationCorrectedByAdvisor:
+          type: boolean
+        openedAt:
+          type: string
+          format: date-time
+        secondsToFirstSubstantiveAnswer:
+          type: integer
+    Intent:
+      type: object
+      required: [name, confidence]
+      properties:
+        name:
+          type: string
+          enum:
+            - bill_higher_than_expected
+            - consumption_query
+            - meter_read_dispute
+            - tariff_change_query
+            - payment_difficulty
+            - disconnection_query
+            - move_in_move_out
+            - outage_query
+            - meter_fault
+            - complaint
+        confidence:
+          type: number
+          format: float
+        triggersVulnerabilityGate:
+          type: boolean
+        requiredGranularity:
+          $ref: "#/components/schemas/MeteringGranularity"
+    ConsumptionExplanationRequest:
+      type: object
+      required: [accountId, meterPointId, comparisonPeriod, subjectPeriod]
+      properties:
+        accountId:
+          type: string
+        meterPointId:
+          type: string
+        subjectPeriod:
+          type: string
+          example: 2026-01
+        comparisonPeriod:
+          type: string
+          example: 2025-01
+        requestedGranularity:
+          $ref: "#/components/schemas/MeteringGranularity"
+        purposeId:
+          type: string
+    ExplanationDriver:
+      type: object
+      required: [driver, contributionAmount]
+      properties:
+        driver:
+          type: string
+          enum:
+            - weather_and_degree_days
+            - consumption_change
+            - tariff_price_change
+            - network_charge_change
+            - standing_charge
+            - estimated_read_correction
+            - billing_period_length
+            - tax_or_levy_change
+        contributionAmount:
+          $ref: "#/components/schemas/Money"
+        contributionPercent:
+          type: number
+          format: float
+        plainLanguage:
+          type: string
+        evidenceReference:
+          type: string
+    ConsumptionExplanation:
+      type: object
+      required: [accountId, subjectPeriod, totalChange, drivers]
+      properties:
+        accountId:
+          type: string
+        meterPointId:
+          type: string
+        subjectPeriod:
+          type: string
+        comparisonPeriod:
+          type: string
+        totalChange:
+          $ref: "#/components/schemas/Money"
+        drivers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExplanationDriver"
+        granularityUsed:
+          $ref: "#/components/schemas/MeteringGranularity"
+        estimatedReadDisclosed:
+          type: boolean
+        unexplainedResidualPercent:
+          type: number
+          format: float
+        confidence:
+          type: number
+          format: float
+    DataDefectReportCreate:
+      type: object
+      required: [meterPointId, defectType, description]
+      properties:
+        meterPointId:
+          type: string
+        sessionId:
+          type: string
+        defectType:
+          type: string
+          enum:
+            - missing_interval_data
+            - implausible_read
+            - persistent_estimation
+            - register_mismatch
+            - tariff_mapping_error
+            - settlement_discrepancy
+        description:
+          type: string
+    DataDefectReport:
+      type: object
+      required: [id, meterPointId, defectType, status]
+      properties:
+        id:
+          type: string
+        meterPointId:
+          type: string
+        sessionId:
+          type: string
+        defectType:
+          type: string
+        status:
+          type: string
+          enum: [raised, accepted, fixed, rejected]
+        description:
+          type: string
+        raisedAt:
+          type: string
+          format: date-time
+    VulnerabilityCategory:
+      type: string
+      enum:
+        - arrears_or_payment_difficulty
+        - disconnection_risk
+        - prepayment_self_disconnection
+        - medical_dependence_on_supply
+        - safeguarding_concern
+        - bereavement
+        - communication_needs
+    VulnerabilityFlagCreate:
+      type: object
+      required: [sessionId, category, detectedBy]
+      properties:
+        sessionId:
+          type: string
+        category:
+          $ref: "#/components/schemas/VulnerabilityCategory"
+        detectedBy:
+          type: string
+          enum: [utterance_signal, register_lookup, arrears_status, advisor]
+        evidence:
+          type: string
+    VulnerabilityFlag:
+      type: object
+      required: [id, sessionId, category, escalationStatus]
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        category:
+          $ref: "#/components/schemas/VulnerabilityCategory"
+        detectedBy:
+          type: string
+        escalationStatus:
+          type: string
+          enum: [pending_transfer, transferred, handled]
+        automatedOutcomesBlocked:
+          type: boolean
+        raisedAt:
+          type: string
+          format: date-time
+    VulnerabilityGatePolicy:
+      type: object
+      properties:
+        mandatoryHumanCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/VulnerabilityCategory"
+        configurable:
+          type: boolean
+          example: false
+        targetQueue:
+          type: string
+        policyVersion:
+          type: integer
+    EscalationEvent:
+      type: object
+      required: [id, sessionId, reason]
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        reason:
+          type: string
+          enum:
+            - vulnerability_gate
+            - outside_policy
+            - low_confidence
+            - customer_request
+            - unbundling_block
+            - data_unavailable
+        targetQueue:
+          type: string
+        packageComplete:
+          type: boolean
+        conversationTranscriptRef:
+          type: string
+        dataUsed:
+          type: array
+          items:
+            type: string
+        escalatedAt:
+          type: string
+          format: date-time
+    ResolutionActionCreate:
+      type: object
+      required: [sessionId, actionType]
+      properties:
+        sessionId:
+          type: string
+        actionType:
+          type: string
+          enum:
+            - request_meter_reread
+            - request_meter_inspection
+            - tariff_eligibility_check
+            - refer_network_fault
+            - reissue_bill
+            - update_contact_preference
+            - send_explanation_summary
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+    ResolutionAction:
+      type: object
+      required: [id, sessionId, actionType, status]
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        actionType:
+          type: string
+        status:
+          type: string
+          enum: [executed, queued, blocked_by_policy, failed]
+        policyReference:
+          type: string
+        targetSystem:
+          type: string
+          enum: [billing, meter_data_management, collections, network_operator, crm]
+        blockReason:
+          type: string
+    PaymentPlanProposal:
+      type: object
+      required: [accountId, instalmentAmount, instalmentCount, advisorReference]
+      properties:
+        accountId:
+          type: string
+        instalmentAmount:
+          $ref: "#/components/schemas/Money"
+        instalmentCount:
+          type: integer
+        affordabilityPolicyRef:
+          type: string
+        advisorReference:
+          type: string
+    PaymentPlan:
+      type: object
+      required: [id, accountId, status]
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        status:
+          type: string
+          enum: [proposed, accepted, declined, blocked]
+        instalmentAmount:
+          $ref: "#/components/schemas/Money"
+        instalmentCount:
+          type: integer
+        affordabilityPolicyRef:
+          type: string
+        proposedByHuman:
+          type: boolean
+    AdviceRecommendation:
+      type: object
+      required: [id, accountId, recommendation, confidence]
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        recommendation:
+          type: string
+          enum:
+            - shift_usage_to_cheaper_band
+            - reduce_standby_load
+            - heating_schedule_change
+            - tariff_switch_eligible
+            - insulation_or_retrofit_referral
+            - smart_thermostat_referral
+        estimatedAnnualSaving:
+          $ref: "#/components/schemas/Money"
+        confidence:
+          type: number
+          format: float
+        granularityUsed:
+          $ref: "#/components/schemas/MeteringGranularity"
+        policyReference:
+          type: string
+        financialConsequence:
+          type: boolean
+    ComplaintCaseCreate:
+      type: object
+      required: [sessionId, category, utteranceAt]
+      properties:
+        sessionId:
+          type: string
+        category:
+          type: string
+          enum: [billing_accuracy, service_failure, metering, sales_conduct, complaint_handling, other]
+        utteranceAt:
+          type: string
+          format: date-time
+        summary:
+          type: string
+    ComplaintCase:
+      type: object
+      required: [id, sessionId, status, clockStartedAt, raisedIn]
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        externalCaseRef:
+          type: string
+        status:
+          type: string
+          enum: [logged, under_investigation, resolved, referred_to_ombudsman, closed]
+        category:
+          type: string
+        raisedIn:
+          type: string
+          enum: [automated_conversation, advisor_contact]
+        clockStartedAt:
+          type: string
+          format: date-time
+        regulatoryDeadline:
+          type: string
+          format: date-time
+    PilotCohortCreate:
+      type: object
+      required: [capability, decisionDate, comparisonGroupDefinition]
+      properties:
+        capability:
+          type: string
+        releaseId:
+          type: string
+        decisionDate:
+          type: string
+          format: date
+        comparisonGroupDefinition:
+          type: string
+        allocationPercent:
+          type: number
+          format: float
+        includedIntents:
+          type: array
+          items:
+            type: string
+    PilotCohort:
+      type: object
+      required: [id, capability, status, decisionDate]
+      properties:
+        id:
+          type: string
+        capability:
+          type: string
+        releaseId:
+          type: string
+        status:
+          type: string
+          enum: [running, awaiting_decision, scaled, stopped]
+        decisionDate:
+          type: string
+          format: date
+        comparisonGroupDefinition:
+          type: string
+        allocationPercent:
+          type: number
+          format: float
+        outcome:
+          type: string
+          enum: [scale, stop, extend]
+        rationale:
+          type: string
+    CohortMetric:
+      type: object
+      required: [cohortId, costPerResolvedContact, firstContactResolutionPercent, complaintRatePerThousand]
+      properties:
+        cohortId:
+          type: string
+        period:
+          type: string
+        weatherAdjusted:
+          type: boolean
+        priceChangeEventsExcluded:
+          type: boolean
+        costPerResolvedContact:
+          $ref: "#/components/schemas/Money"
+        baselineCostPerResolvedContact:
+          $ref: "#/components/schemas/Money"
+        containmentPercent:
+          type: number
+          format: float
+        firstContactResolutionPercent:
+          type: number
+          format: float
+        complaintRatePerThousand:
+          type: number
+          format: float
+        abandonmentPercent:
+          type: number
+          format: float
+        advisorCorrectionRatePercent:
+          type: number
+          format: float
+    UnbundlingCheck:
+      type: object
+      required: [id, sessionId, declaredRole, verdict]
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        declaredRole:
+          $ref: "#/components/schemas/RegulatedRole"
+        requestedDataSource:
+          type: string
+          enum: [supply_side, network_side, affiliate]
+        purposeId:
+          type: string
+        verdict:
+          type: string
+          enum: [permitted, blocked]
+        rationale:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+    AutomationReleaseCreate:
+      type: object
+      required: [capability, version, approvedBy]
+      properties:
+        capability:
+          type: string
+        version:
+          type: string
+        approvedBy:
+          type: string
+        changeSummary:
+          type: string
+        affectedIntents:
+          type: array
+          items:
+            type: string
+    AutomationRelease:
+      type: object
+      required: [id, capability, version, approvedBy, approvedAt]
+      properties:
+        id:
+          type: string
+        capability:
+          type: string
+        version:
+          type: string
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+        changeSummary:
+          type: string
+        status:
+          type: string
+          enum: [approved, active, superseded, rolled_back]
+    EvidencePack:
+      type: object
+      required: [id, sessionId, generatedAt]
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        complaintCaseId:
+          type: string
+        conversationTranscriptRef:
+          type: string
+        dataUsed:
+          type: array
+          items:
+            type: string
+        purposeId:
+          type: string
+        regulatedRole:
+          $ref: "#/components/schemas/RegulatedRole"
+        releaseId:
+          type: string
+        escalationDecisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/EscalationEvent"
+        unbundlingChecks:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnbundlingCheck"
+        specialCategoryMinimised:
+          type: boolean
+        generatedAt:
+          type: string
+          format: date-time
+    DataEnvelopeContactSession:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ContactSession"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeIntent:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Intent"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeAccountContext:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/AccountContext"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeEscalationEvent:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/EscalationEvent"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeConsumptionExplanation:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsumptionExplanation"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDataDefectReport:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DataDefectReport"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeConsentRecord:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsentRecord"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeVulnerabilityFlag:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/VulnerabilityFlag"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeVulnerabilityGatePolicy:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/VulnerabilityGatePolicy"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeResolutionAction:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ResolutionAction"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePaymentPlan:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PaymentPlan"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeComplaintCase:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ComplaintCase"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePilotCohort:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PilotCohort"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeCohortMetric:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/CohortMetric"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeAutomationRelease:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/AutomationRelease"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeEvidencePack:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/EvidencePack"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeContactSession:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ContactSession"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeEstimatedReadCorrection:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/EstimatedReadCorrection"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDataPurpose:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/DataPurpose"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeConsentRecord:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ConsentRecord"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeVulnerabilityFlag:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/VulnerabilityFlag"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeAdviceRecommendation:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdviceRecommendation"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeComplaintCase:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ComplaintCase"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopePilotCohort:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PilotCohort"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeUnbundlingCheck:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/UnbundlingCheck"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeAutomationRelease:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AutomationRelease"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
