@@ -1,0 +1,215 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Compliance API schemas
+  version: 0.1.0
+  description: Unbundling checks, versioned releases, and ombudsman evidence packs.
+paths: {}
+components:
+  schemas:
+    AutomationRelease:
+      type: object
+      required:
+      - id
+      - capability
+      - version
+      - approvedBy
+      - approvedAt
+      properties:
+        id:
+          type: string
+        capability:
+          type: string
+        version:
+          type: string
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+        changeSummary:
+          type: string
+        status:
+          type: string
+          enum:
+          - approved
+          - active
+          - superseded
+          - rolled_back
+    AutomationReleaseCreate:
+      type: object
+      required:
+      - capability
+      - version
+      - approvedBy
+      properties:
+        capability:
+          type: string
+        version:
+          type: string
+        approvedBy:
+          type: string
+        changeSummary:
+          type: string
+        affectedIntents:
+          type: array
+          items:
+            type: string
+    EscalationEvent:
+      type: object
+      required:
+      - id
+      - sessionId
+      - reason
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        reason:
+          type: string
+          enum:
+          - vulnerability_gate
+          - outside_policy
+          - low_confidence
+          - customer_request
+          - unbundling_block
+          - data_unavailable
+        targetQueue:
+          type: string
+        packageComplete:
+          type: boolean
+        conversationTranscriptRef:
+          type: string
+        dataUsed:
+          type: array
+          items:
+            type: string
+        escalatedAt:
+          type: string
+          format: date-time
+    EvidencePack:
+      type: object
+      required:
+      - id
+      - sessionId
+      - generatedAt
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        complaintCaseId:
+          type: string
+        conversationTranscriptRef:
+          type: string
+        dataUsed:
+          type: array
+          items:
+            type: string
+        purposeId:
+          type: string
+        regulatedRole:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/RegulatedRole
+        releaseId:
+          type: string
+        escalationDecisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EscalationEvent'
+        unbundlingChecks:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnbundlingCheck'
+        specialCategoryMinimised:
+          type: boolean
+        generatedAt:
+          type: string
+          format: date-time
+        releaseVersionId:
+          type: string
+          description: Capability version reconstructed for the pack (BR-12).
+        integrityAttested:
+          type: boolean
+          description: Whether pack integrity attestation succeeded.
+    UnbundlingCheck:
+      type: object
+      required:
+      - id
+      - sessionId
+      - declaredRole
+      - verdict
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        declaredRole:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/RegulatedRole
+        requestedDataSource:
+          type: string
+          enum:
+          - supply_side
+          - network_side
+          - affiliate
+        purposeId:
+          type: string
+        verdict:
+          type: string
+          enum:
+          - permitted
+          - blocked
+        rationale:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+    UnbundlingCheckListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/UnbundlingCheck'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    AutomationReleaseResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AutomationRelease'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    EvidencePackResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/EvidencePack'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    AutomationReleaseListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AutomationRelease'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta

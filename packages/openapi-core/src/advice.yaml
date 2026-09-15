@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Advice API
+  version: 0.1.0
+  description: Energy management recommendations with savings estimates and confidence.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: adv
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Advice
+  description: Advice recommendations
+paths:
+  /v1/advice/recommendations:
+    get:
+      operationId: listAdviceRecommendations
+      tags:
+      - Advice
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      parameters:
+      - name: accountId
+        in: query
+        required: true
+        schema:
+          type: string
+      - $ref: ./common/parameters.yaml#/components/parameters/Cursor
+      - $ref: ./common/parameters.yaml#/components/parameters/Limit
+      responses:
+        '200':
+          description: Recommendations with savings estimate and stated confidence
+          content:
+            application/json:
+              schema:
+                $ref: ./advice.schemas.yaml#/components/schemas/AdviceRecommendationListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Advice Recommendations
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

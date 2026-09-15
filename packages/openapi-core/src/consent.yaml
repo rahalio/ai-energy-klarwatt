@@ -1,0 +1,126 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Consent API
+  version: 0.1.0
+  description: Lawful purposes, metering granularity ceilings, consent capture and withdrawal.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: cst
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Consent
+  description: Purpose and consent records
+paths:
+  /v1/consent/purposes:
+    get:
+      operationId: listDataPurposes
+      tags:
+      - Consent
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Lawful purposes with their metering granularity ceilings
+          content:
+            application/json:
+              schema:
+                $ref: ./consent.schemas.yaml#/components/schemas/DataPurposeListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Data Purposes
+  /v1/consent/records:
+    get:
+      operationId: listConsentRecords
+      tags:
+      - Consent
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      parameters:
+      - name: accountId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Consent records for the account
+          content:
+            application/json:
+              schema:
+                $ref: ./consent.schemas.yaml#/components/schemas/ConsentRecordListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Consent Records
+    post:
+      operationId: captureConsent
+      tags:
+      - Consent
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./consent.schemas.yaml#/components/schemas/ConsentRecordCreate
+      responses:
+        '201':
+          description: Consent captured for a purpose and granularity
+          content:
+            application/json:
+              schema:
+                $ref: ./consent.schemas.yaml#/components/schemas/ConsentRecordResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Capture Consent
+  /v1/consent/records/{consentId}/withdrawal:
+    parameters:
+    - $ref: ./consent.schemas.yaml#/components/parameters/ConsentId
+    post:
+      operationId: withdrawConsent
+      tags:
+      - Consent
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Consent withdrawn and effective from the next interaction
+          content:
+            application/json:
+              schema:
+                $ref: ./consent.schemas.yaml#/components/schemas/ConsentRecordResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Withdraw Consent
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

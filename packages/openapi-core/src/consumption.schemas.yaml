@@ -1,0 +1,200 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Consumption API schemas
+  version: 0.1.0
+  description: Bill and usage change decomposition, estimated-read reconciliation, and data defect reports.
+paths: {}
+components:
+  schemas:
+    ConsumptionExplanation:
+      type: object
+      required:
+      - accountId
+      - subjectPeriod
+      - totalChange
+      - drivers
+      properties:
+        accountId:
+          type: string
+        meterPointId:
+          type: string
+        subjectPeriod:
+          type: string
+        comparisonPeriod:
+          type: string
+        totalChange:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        drivers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExplanationDriver'
+        granularityUsed:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        estimatedReadDisclosed:
+          type: boolean
+        unexplainedResidualPercent:
+          type: number
+          format: float
+        confidence:
+          type: number
+          format: float
+    ConsumptionExplanationRequest:
+      type: object
+      required:
+      - accountId
+      - meterPointId
+      - comparisonPeriod
+      - subjectPeriod
+      properties:
+        accountId:
+          type: string
+        meterPointId:
+          type: string
+        subjectPeriod:
+          type: string
+          example: 2026-01
+        comparisonPeriod:
+          type: string
+          example: 2025-01
+        requestedGranularity:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        purposeId:
+          type: string
+    DataDefectReport:
+      type: object
+      required:
+      - id
+      - meterPointId
+      - defectType
+      - status
+      properties:
+        id:
+          type: string
+        meterPointId:
+          type: string
+        sessionId:
+          type: string
+        defectType:
+          type: string
+        status:
+          type: string
+          enum:
+          - raised
+          - accepted
+          - fixed
+          - rejected
+        description:
+          type: string
+        raisedAt:
+          type: string
+          format: date-time
+    DataDefectReportCreate:
+      type: object
+      required:
+      - meterPointId
+      - defectType
+      - description
+      properties:
+        meterPointId:
+          type: string
+        sessionId:
+          type: string
+        defectType:
+          type: string
+          enum:
+          - missing_interval_data
+          - implausible_read
+          - persistent_estimation
+          - register_mismatch
+          - tariff_mapping_error
+          - settlement_discrepancy
+        description:
+          type: string
+    EstimatedReadCorrection:
+      type: object
+      required:
+      - id
+      - meterPointId
+      - correctedAt
+      properties:
+        id:
+          type: string
+        meterPointId:
+          type: string
+        estimatedValueKwh:
+          type: number
+          format: double
+        actualValueKwh:
+          type: number
+          format: double
+        billingPeriodsAffected:
+          type: array
+          items:
+            type: string
+        monetaryAdjustment:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        correctedAt:
+          type: string
+          format: date-time
+        disclosedToCustomer:
+          type: boolean
+    ExplanationDriver:
+      type: object
+      required:
+      - driver
+      - contributionAmount
+      properties:
+        driver:
+          type: string
+          enum:
+          - weather_and_degree_days
+          - consumption_change
+          - tariff_price_change
+          - network_charge_change
+          - standing_charge
+          - estimated_read_correction
+          - billing_period_length
+          - tax_or_levy_change
+        contributionAmount:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        contributionPercent:
+          type: number
+          format: float
+        plainLanguage:
+          type: string
+        evidenceReference:
+          type: string
+    DataDefectReportResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/DataDefectReport'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    ConsumptionExplanationResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ConsumptionExplanation'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    EstimatedReadCorrectionListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/EstimatedReadCorrection'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta

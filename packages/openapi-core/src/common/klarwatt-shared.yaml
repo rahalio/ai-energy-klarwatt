@@ -1,0 +1,150 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt shared domain schemas
+  version: 0.1.0
+  description: Cross-domain enums and entities referenced by multiple Klarwatt domains.
+paths: {}
+components:
+  schemas:
+    MeterPoint:
+      type: object
+      required:
+      - id
+      - commodity
+      - meterType
+      properties:
+        id:
+          type: string
+        commodity:
+          type: string
+          enum:
+          - electricity
+          - gas
+          - heat
+        meterType:
+          type: string
+          enum:
+          - smart_interval
+          - smart_daily
+          - traditional
+        networkOperatorId:
+          type: string
+        readSubmissionLag:
+          type: string
+          example: PT24H
+    Money:
+      type: object
+      required:
+      - amount
+      - currency
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: EUR
+    RegulatedRole:
+      type: string
+      description: The licensed role the automated agent speaks in for this interaction
+      enum:
+      - supplier
+      - network_operator
+      - affiliated_service_provider
+    CustomerAccount:
+      type: object
+      required:
+      - id
+      - meterPointIds
+      properties:
+        id:
+          type: string
+        meterPointIds:
+          type: array
+          items:
+            type: string
+        paymentMethod:
+          type: string
+          enum:
+          - direct_debit
+          - on_receipt
+          - prepayment
+        arrearsBalance:
+          $ref: '#/components/schemas/Money'
+        priorityServicesRegistered:
+          type: boolean
+    MeterReading:
+      type: object
+      required:
+      - meterPointId
+      - readAt
+      - valueKwh
+      - readType
+      properties:
+        meterPointId:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+        valueKwh:
+          type: number
+          format: double
+        readType:
+          type: string
+          enum:
+          - actual
+          - estimated
+          - customer_submitted
+          - deemed
+        granularity:
+          $ref: '#/components/schemas/MeteringGranularity'
+    Channel:
+      type: string
+      enum:
+      - voice
+      - chat
+      - mobile_app
+      - web_form
+      - email
+      - sms
+    TariffPlan:
+      type: object
+      required:
+      - id
+      - name
+      - structure
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        structure:
+          type: string
+          enum:
+          - fixed
+          - variable
+          - time_of_use
+          - dynamic
+        standingChargePerDay:
+          $ref: '#/components/schemas/Money'
+        unitRates:
+          type: array
+          items:
+            type: object
+            properties:
+              band:
+                type: string
+              pricePerKwh:
+                $ref: '#/components/schemas/Money'
+        networkChargePassThrough:
+          type: boolean
+        effectiveFrom:
+          type: string
+          format: date
+    MeteringGranularity:
+      type: string
+      enum:
+      - monthly_total
+      - daily
+      - hourly
+      - half_hourly

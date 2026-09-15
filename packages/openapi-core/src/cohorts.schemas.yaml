@@ -1,0 +1,154 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Cohorts API schemas
+  version: 0.1.0
+  description: Pilot cohorts, comparison groups, joint metrics, and scale-or-stop decisions.
+paths: {}
+components:
+  schemas:
+    CohortMetric:
+      type: object
+      required:
+      - cohortId
+      - costPerResolvedContact
+      - firstContactResolutionPercent
+      - complaintRatePerThousand
+      properties:
+        cohortId:
+          type: string
+        period:
+          type: string
+        weatherAdjusted:
+          type: boolean
+        priceChangeEventsExcluded:
+          type: boolean
+        costPerResolvedContact:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        baselineCostPerResolvedContact:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        containmentPercent:
+          type: number
+          format: float
+        firstContactResolutionPercent:
+          type: number
+          format: float
+        complaintRatePerThousand:
+          type: number
+          format: float
+        abandonmentPercent:
+          type: number
+          format: float
+        advisorCorrectionRatePercent:
+          type: number
+          format: float
+        firstContactResolutionRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: First-contact resolution rate (BR-7).
+        complaintRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Complaint rate paired with cost and FCR (BR-7).
+    PilotCohort:
+      type: object
+      required:
+      - id
+      - capability
+      - status
+      - decisionDate
+      properties:
+        id:
+          type: string
+        capability:
+          type: string
+        releaseId:
+          type: string
+        status:
+          type: string
+          enum:
+          - running
+          - awaiting_decision
+          - scaled
+          - stopped
+        decisionDate:
+          type: string
+          format: date
+        comparisonGroupDefinition:
+          type: string
+        allocationPercent:
+          type: number
+          format: float
+        outcome:
+          type: string
+          enum:
+          - scale
+          - stop
+          - extend
+        rationale:
+          type: string
+    PilotCohortCreate:
+      type: object
+      required:
+      - capability
+      - decisionDate
+      - comparisonGroupDefinition
+      properties:
+        capability:
+          type: string
+        releaseId:
+          type: string
+        decisionDate:
+          type: string
+          format: date
+        comparisonGroupDefinition:
+          type: string
+        allocationPercent:
+          type: number
+          format: float
+        includedIntents:
+          type: array
+          items:
+            type: string
+    PilotCohortListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PilotCohort'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    CohortMetricResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/CohortMetric'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    PilotCohortResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/PilotCohort'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+  parameters:
+    CohortId:
+      name: cohortId
+      in: path
+      required: true
+      schema:
+        type: string

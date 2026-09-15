@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Consent API schemas
+  version: 0.1.0
+  description: Lawful purposes, metering granularity ceilings, consent capture and withdrawal.
+paths: {}
+components:
+  schemas:
+    ConsentRecord:
+      type: object
+      required:
+      - id
+      - accountId
+      - purposeId
+      - status
+      - grantedGranularity
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        purposeId:
+          type: string
+        status:
+          type: string
+          enum:
+          - granted
+          - withdrawn
+          - expired
+        grantedGranularity:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        capturedVia:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Channel
+        grantedAt:
+          type: string
+          format: date-time
+        withdrawnAt:
+          type: string
+          format: date-time
+        effectiveFromNextInteraction:
+          type: boolean
+    ConsentRecordCreate:
+      type: object
+      required:
+      - accountId
+      - purposeId
+      - grantedGranularity
+      properties:
+        accountId:
+          type: string
+        purposeId:
+          type: string
+        grantedGranularity:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        capturedVia:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Channel
+    DataPurpose:
+      type: object
+      required:
+      - id
+      - name
+      - lawfulBasis
+      - maxGranularity
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: explain_bill_increase
+        lawfulBasis:
+          type: string
+          enum:
+          - contract_performance
+          - legal_obligation
+          - legitimate_interest
+          - consent
+        maxGranularity:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        permittedRoles:
+          type: array
+          items:
+            $ref: ./common/klarwatt-shared.yaml#/components/schemas/RegulatedRole
+        retentionPeriod:
+          type: string
+          example: P6Y
+    ConsentRecordListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConsentRecord'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    DataPurposeListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/DataPurpose'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    ConsentRecordResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ConsentRecord'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+  parameters:
+    ConsentId:
+      name: consentId
+      in: path
+      required: true
+      schema:
+        type: string

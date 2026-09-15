@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Complaints API schemas
+  version: 0.1.0
+  description: Complaint recognition inside automated conversations and regulatory clocks.
+paths: {}
+components:
+  schemas:
+    ComplaintCase:
+      type: object
+      required:
+      - id
+      - sessionId
+      - status
+      - clockStartedAt
+      - raisedIn
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        externalCaseRef:
+          type: string
+        status:
+          type: string
+          enum:
+          - logged
+          - under_investigation
+          - resolved
+          - referred_to_ombudsman
+          - closed
+        category:
+          type: string
+        raisedIn:
+          type: string
+          enum:
+          - automated_conversation
+          - advisor_contact
+        clockStartedAt:
+          type: string
+          format: date-time
+        regulatoryDeadline:
+          type: string
+          format: date-time
+    ComplaintCaseCreate:
+      type: object
+      required:
+      - sessionId
+      - category
+      - utteranceAt
+      properties:
+        sessionId:
+          type: string
+        category:
+          type: string
+          enum:
+          - billing_accuracy
+          - service_failure
+          - metering
+          - sales_conduct
+          - complaint_handling
+          - other
+        utteranceAt:
+          type: string
+          format: date-time
+        summary:
+          type: string
+    ComplaintCaseListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ComplaintCase'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    ComplaintCaseResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ComplaintCase'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta

@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Consumption API
+  version: 0.1.0
+  description: Bill and usage change decomposition, estimated-read reconciliation, and data defect reports.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: cns
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Consumption
+  description: Explanations and metering defects
+paths:
+  /v1/consumption/explanations:
+    post:
+      operationId: explainConsumptionChange
+      tags:
+      - Consumption
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./consumption.schemas.yaml#/components/schemas/ConsumptionExplanationRequest
+      responses:
+        '200':
+          description: Quantified driver decomposition in plain language
+          content:
+            application/json:
+              schema:
+                $ref: ./consumption.schemas.yaml#/components/schemas/ConsumptionExplanationResponse
+        '403':
+          description: Requested granularity exceeds the purpose ceiling without consent
+          content:
+            application/json:
+              schema:
+                $ref: ./common/problem.yaml#/components/schemas/Problem
+      summary: Explain Consumption Change
+  /v1/consumption/estimated-read-corrections:
+    get:
+      operationId: listEstimatedReadCorrections
+      tags:
+      - Consumption
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: ./common/parameters.yaml#/components/parameters/Cursor
+      - $ref: ./common/parameters.yaml#/components/parameters/Limit
+      - name: meterPointId
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Estimated versus actual read corrections affecting bills
+          content:
+            application/json:
+              schema:
+                $ref: ./consumption.schemas.yaml#/components/schemas/EstimatedReadCorrectionListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Estimated Read Corrections
+  /v1/consumption/data-defects:
+    post:
+      operationId: raiseDataDefectReport
+      tags:
+      - Consumption
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./consumption.schemas.yaml#/components/schemas/DataDefectReportCreate
+      responses:
+        '201':
+          description: Metering data defect raised to billing operations as a work item
+          content:
+            application/json:
+              schema:
+                $ref: ./consumption.schemas.yaml#/components/schemas/DataDefectReportResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Raise Data Defect Report
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

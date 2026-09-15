@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Contacts API schemas
+  version: 0.1.0
+  description: Omnichannel contact intake, regulated role resolution, intents, advisor handover, and account
+    context.
+paths: {}
+components:
+  schemas:
+    AccountContext:
+      type: object
+      required:
+      - account
+      - meterPoints
+      - granularityCeiling
+      properties:
+        account:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/CustomerAccount
+        meterPoints:
+          type: array
+          items:
+            $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeterPoint
+        currentTariff:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/TariffPlan
+        previousTariff:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/TariffPlan
+        recentReadings:
+          type: array
+          items:
+            $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeterReading
+        granularityCeiling:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        purposeId:
+          type: string
+    ContactSession:
+      type: object
+      required:
+      - id
+      - channel
+      - regulatedRole
+      - purposeId
+      - outcome
+      properties:
+        id:
+          type: string
+        channel:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Channel
+        accountId:
+          type: string
+        meterPointId:
+          type: string
+        regulatedRole:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/RegulatedRole
+        purposeId:
+          type: string
+        granularityCeiling:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+        outcome:
+          type: string
+          enum:
+          - in_progress
+          - resolved
+          - escalated
+          - abandoned
+          - blocked_by_policy
+        firstContactResolution:
+          type: boolean
+        dataUsed:
+          type: array
+          items:
+            type: string
+          description: Named data elements read during the interaction
+        releaseId:
+          type: string
+          description: Capability release version that served this interaction
+        cohortId:
+          type: string
+        explanationCorrectedByAdvisor:
+          type: boolean
+        openedAt:
+          type: string
+          format: date-time
+        secondsToFirstSubstantiveAnswer:
+          type: integer
+        releaseVersionId:
+          type: string
+          description: Pinned automation capability version that served this session (BR-12).
+        packageCompleteness:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Advisor handover package completeness (conversation, data used, reason).
+    ContactSessionCreate:
+      type: object
+      required:
+      - channel
+      - accountReference
+      properties:
+        channel:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Channel
+        accountReference:
+          type: string
+        meterPointId:
+          type: string
+        declaredRole:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/RegulatedRole
+        purposeId:
+          type: string
+        cohortId:
+          type: string
+    EscalationEvent:
+      type: object
+      required:
+      - id
+      - sessionId
+      - reason
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        reason:
+          type: string
+          enum:
+          - vulnerability_gate
+          - outside_policy
+          - low_confidence
+          - customer_request
+          - unbundling_block
+          - data_unavailable
+        targetQueue:
+          type: string
+        packageComplete:
+          type: boolean
+        conversationTranscriptRef:
+          type: string
+        dataUsed:
+          type: array
+          items:
+            type: string
+        escalatedAt:
+          type: string
+          format: date-time
+    Intent:
+      type: object
+      required:
+      - name
+      - confidence
+      properties:
+        name:
+          type: string
+          enum:
+          - bill_higher_than_expected
+          - consumption_query
+          - meter_read_dispute
+          - tariff_change_query
+          - payment_difficulty
+          - disconnection_query
+          - move_in_move_out
+          - outage_query
+          - meter_fault
+          - complaint
+        confidence:
+          type: number
+          format: float
+        triggersVulnerabilityGate:
+          type: boolean
+        requiredGranularity:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/MeteringGranularity
+    IntentResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Intent'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    EscalationEventResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/EscalationEvent'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    ContactSessionResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ContactSession'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    AccountContextResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/AccountContext'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    ContactSessionListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContactSession'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string

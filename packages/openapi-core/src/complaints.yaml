@@ -1,0 +1,79 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Complaints API
+  version: 0.1.0
+  description: Complaint recognition inside automated conversations and regulatory clocks.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: cmp
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Complaints
+  description: Complaint cases and clocks
+paths:
+  /v1/complaints:
+    post:
+      operationId: recogniseComplaint
+      tags:
+      - Complaints
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./complaints.schemas.yaml#/components/schemas/ComplaintCaseCreate
+      responses:
+        '201':
+          description: Complaint logged with the regulatory clock started at utterance time
+          content:
+            application/json:
+              schema:
+                $ref: ./complaints.schemas.yaml#/components/schemas/ComplaintCaseResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Recognise Complaint
+    get:
+      operationId: listComplaints
+      tags:
+      - Complaints
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: ./common/parameters.yaml#/components/parameters/Cursor
+      - $ref: ./common/parameters.yaml#/components/parameters/Limit
+      - name: raisedIn
+        in: query
+        schema:
+          type: string
+          enum:
+          - automated_conversation
+          - advisor_contact
+      responses:
+        '200':
+          description: Complaint cases page
+          content:
+            application/json:
+              schema:
+                $ref: ./complaints.schemas.yaml#/components/schemas/ComplaintCaseListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Complaints
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

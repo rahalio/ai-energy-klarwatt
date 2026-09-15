@@ -1,0 +1,149 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Cohorts API
+  version: 0.1.0
+  description: Pilot cohorts, comparison groups, joint metrics, and scale-or-stop decisions.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: coh
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Cohorts
+  description: Cohorts and scale-or-stop
+paths:
+  /v1/cohorts:
+    get:
+      operationId: listPilotCohorts
+      tags:
+      - Cohorts
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: ./common/parameters.yaml#/components/parameters/Cursor
+      - $ref: ./common/parameters.yaml#/components/parameters/Limit
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - running
+          - awaiting_decision
+          - scaled
+          - stopped
+      responses:
+        '200':
+          description: Cohorts with comparison groups and decision dates
+          content:
+            application/json:
+              schema:
+                $ref: ./cohorts.schemas.yaml#/components/schemas/PilotCohortListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Pilot Cohorts
+    post:
+      operationId: createPilotCohort
+      tags:
+      - Cohorts
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./cohorts.schemas.yaml#/components/schemas/PilotCohortCreate
+      responses:
+        '201':
+          description: Cohort created with a comparison group and scale-or-stop date
+          content:
+            application/json:
+              schema:
+                $ref: ./cohorts.schemas.yaml#/components/schemas/PilotCohortResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Create Pilot Cohort
+  /v1/cohorts/{cohortId}/metrics:
+    parameters:
+    - $ref: ./cohorts.schemas.yaml#/components/parameters/CohortId
+    get:
+      operationId: getCohortMetrics
+      tags:
+      - Cohorts
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: weatherAdjusted
+        in: query
+        schema:
+          type: boolean
+          default: true
+      responses:
+        '200':
+          description: Cost per resolved contact with first-contact resolution and complaint rate
+          content:
+            application/json:
+              schema:
+                $ref: ./cohorts.schemas.yaml#/components/schemas/CohortMetricResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Get Cohort Metrics
+  /v1/cohorts/{cohortId}/decision:
+    parameters:
+    - $ref: ./cohorts.schemas.yaml#/components/parameters/CohortId
+    post:
+      operationId: decideCohortOutcome
+      tags:
+      - Cohorts
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - outcome
+              - decidedBy
+              - rationale
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                  - scale
+                  - stop
+                  - extend
+                decidedBy:
+                  type: string
+                rationale:
+                  type: string
+      responses:
+        '200':
+          description: Scale or stop decision recorded; stopping is an expected outcome
+          content:
+            application/json:
+              schema:
+                $ref: ./cohorts.schemas.yaml#/components/schemas/PilotCohortResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Decide Cohort Outcome
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

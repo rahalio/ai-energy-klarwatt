@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Resolutions API
+  version: 0.1.0
+  description: Policy-bounded outcomes including payment plans and network referrals.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: res
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Resolutions
+  description: Resolutions and payment plans
+paths:
+  /v1/resolutions:
+    post:
+      operationId: executeResolution
+      tags:
+      - Resolutions
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./resolutions.schemas.yaml#/components/schemas/ResolutionActionCreate
+      responses:
+        '201':
+          description: Resolution executed against the relevant system of record
+          content:
+            application/json:
+              schema:
+                $ref: ./resolutions.schemas.yaml#/components/schemas/ResolutionActionResponse
+        '403':
+          description: Resolution falls outside approved policy or a vulnerability flag is open
+          content:
+            application/json:
+              schema:
+                $ref: ./common/problem.yaml#/components/schemas/Problem
+      summary: Execute Resolution
+  /v1/resolutions/payment-plans:
+    post:
+      operationId: proposePaymentPlan
+      tags:
+      - Resolutions
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./resolutions.schemas.yaml#/components/schemas/PaymentPlanProposal
+      responses:
+        '201':
+          description: Plan proposed within affordability policy by a human advisor
+          content:
+            application/json:
+              schema:
+                $ref: ./resolutions.schemas.yaml#/components/schemas/PaymentPlanResponse
+        '403':
+          description: Payment plans may not be proposed by an automated agent
+          content:
+            application/json:
+              schema:
+                $ref: ./common/problem.yaml#/components/schemas/Problem
+      summary: Propose Payment Plan
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

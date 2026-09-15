@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Compliance API
+  version: 0.1.0
+  description: Unbundling checks, versioned releases, and ombudsman evidence packs.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: cpl
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Compliance
+  description: Unbundling, releases, evidence
+paths:
+  /v1/compliance/unbundling-checks:
+    get:
+      operationId: listUnbundlingChecks
+      tags:
+      - Compliance
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: ./common/parameters.yaml#/components/parameters/Cursor
+      - $ref: ./common/parameters.yaml#/components/parameters/Limit
+      - name: verdict
+        in: query
+        schema:
+          type: string
+          enum:
+          - permitted
+          - blocked
+      responses:
+        '200':
+          description: Recorded checks of data use against the declared regulated role
+          content:
+            application/json:
+              schema:
+                $ref: ./compliance.schemas.yaml#/components/schemas/UnbundlingCheckListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Unbundling Checks
+  /v1/compliance/releases:
+    get:
+      operationId: listAutomationReleases
+      tags:
+      - Compliance
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Versioned capability releases with named approvers
+          content:
+            application/json:
+              schema:
+                $ref: ./compliance.schemas.yaml#/components/schemas/AutomationReleaseListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Automation Releases
+    post:
+      operationId: approveAutomationRelease
+      tags:
+      - Compliance
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./compliance.schemas.yaml#/components/schemas/AutomationReleaseCreate
+      responses:
+        '201':
+          description: Release approved and available for version pinning
+          content:
+            application/json:
+              schema:
+                $ref: ./compliance.schemas.yaml#/components/schemas/AutomationReleaseResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Approve Automation Release
+  /v1/compliance/evidence-packs:
+    post:
+      operationId: generateEvidencePack
+      tags:
+      - Compliance
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - sessionId
+              properties:
+                sessionId:
+                  type: string
+                complaintCaseId:
+                  type: string
+      responses:
+        '201':
+          description: Ombudsman-ready pack with conversation, data used, and decisions
+          content:
+            application/json:
+              schema:
+                $ref: ./compliance.schemas.yaml#/components/schemas/EvidencePackResponse
+        '404':
+          $ref: ./common/responses.yaml#/components/responses/NotFound
+      summary: Generate Evidence Pack
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth

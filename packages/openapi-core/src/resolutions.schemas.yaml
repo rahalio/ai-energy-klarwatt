@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Resolutions API schemas
+  version: 0.1.0
+  description: Policy-bounded outcomes including payment plans and network referrals.
+paths: {}
+components:
+  schemas:
+    PaymentPlan:
+      type: object
+      required:
+      - id
+      - accountId
+      - status
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        status:
+          type: string
+          enum:
+          - proposed
+          - accepted
+          - declined
+          - blocked
+        instalmentAmount:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        instalmentCount:
+          type: integer
+        affordabilityPolicyRef:
+          type: string
+        proposedByHuman:
+          type: boolean
+    PaymentPlanProposal:
+      type: object
+      required:
+      - accountId
+      - instalmentAmount
+      - instalmentCount
+      - advisorReference
+      properties:
+        accountId:
+          type: string
+        instalmentAmount:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Money
+        instalmentCount:
+          type: integer
+        affordabilityPolicyRef:
+          type: string
+        advisorReference:
+          type: string
+    ResolutionAction:
+      type: object
+      required:
+      - id
+      - sessionId
+      - actionType
+      - status
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        actionType:
+          type: string
+        status:
+          type: string
+          enum:
+          - executed
+          - queued
+          - blocked_by_policy
+          - failed
+        policyReference:
+          type: string
+        targetSystem:
+          type: string
+          enum:
+          - billing
+          - meter_data_management
+          - collections
+          - network_operator
+          - crm
+        blockReason:
+          type: string
+    ResolutionActionCreate:
+      type: object
+      required:
+      - sessionId
+      - actionType
+      properties:
+        sessionId:
+          type: string
+        actionType:
+          type: string
+          enum:
+          - request_meter_reread
+          - request_meter_inspection
+          - tariff_eligibility_check
+          - refer_network_fault
+          - reissue_bill
+          - update_contact_preference
+          - send_explanation_summary
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+    PaymentPlanResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/PaymentPlan'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta
+    ResolutionActionResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ResolutionAction'
+        meta:
+          $ref: ./common/envelopes.yaml#/components/schemas/ResponseMeta

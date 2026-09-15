@@ -1,0 +1,269 @@
+openapi: 3.1.0
+info:
+  title: Klarwatt Contacts API
+  version: 0.1.0
+  description: Omnichannel contact intake, regulated role resolution, intents, advisor handover, and account
+    context.
+  license:
+    name: Proprietary
+    url: https://klarwatt.local/license
+  x-domain: ctc
+  x-product: klarwatt
+servers:
+- url: https://api.klarwatt.local
+  description: Local Klarwatt API
+security:
+- apiKey: []
+tags:
+- name: Contacts
+  description: Contact sessions and advisor desk
+paths:
+  /v1/contacts:
+    post:
+      operationId: openContactSession
+      tags:
+      - Contacts
+      security:
+      - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./contacts.schemas.yaml#/components/schemas/ContactSessionCreate
+      responses:
+        '201':
+          description: Session opened with account, meter point, and regulated role resolved
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/ContactSessionResponse
+        '422':
+          $ref: ./common/responses.yaml#/components/responses/UnprocessableEntity
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+      summary: Open Contact Session
+    get:
+      operationId: listContactSessions
+      tags:
+      - Contacts
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: ./common/parameters.yaml#/components/parameters/Cursor
+      - $ref: ./common/parameters.yaml#/components/parameters/Limit
+      - name: outcome
+        in: query
+        schema:
+          type: string
+          enum:
+          - resolved
+          - escalated
+          - abandoned
+          - blocked_by_policy
+      - name: channel
+        in: query
+        schema:
+          $ref: ./common/klarwatt-shared.yaml#/components/schemas/Channel
+      - name: vulnerabilityOnly
+        in: query
+        required: false
+        description: 'Advisor desk: only sessions with an active vulnerability flag (WEBAPP live queue).'
+        schema:
+          type: boolean
+      - name: complaintClockRunning
+        in: query
+        required: false
+        description: 'Advisor desk: only sessions with a running complaint regulatory clock.'
+        schema:
+          type: boolean
+      - name: escalatedOnly
+        in: query
+        required: false
+        description: Live / escalated queue filter.
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: Contact sessions page
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/ContactSessionListResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: List Contact Sessions
+  /v1/contacts/{sessionId}:
+    parameters:
+    - $ref: ./contacts.schemas.yaml#/components/parameters/SessionId
+    get:
+      operationId: getContactSession
+      tags:
+      - Contacts
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Session with role, purpose, data used, and pinned release version
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/ContactSessionResponse
+        '404':
+          $ref: ./common/responses.yaml#/components/responses/NotFound
+      summary: Get Contact Session
+  /v1/contacts/{sessionId}/intents:
+    parameters:
+    - $ref: ./contacts.schemas.yaml#/components/parameters/SessionId
+    post:
+      operationId: classifyContactIntent
+      tags:
+      - Contacts
+      security:
+      - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - utterance
+              properties:
+                utterance:
+                  type: string
+      responses:
+        '200':
+          description: Intent classified within the purpose and granularity envelope
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/IntentResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Classify Contact Intent
+  /v1/contacts/{sessionId}/handover:
+    parameters:
+    - $ref: ./contacts.schemas.yaml#/components/parameters/SessionId
+    post:
+      operationId: escalateToAdvisor
+      tags:
+      - Contacts
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  enum:
+                  - vulnerability_gate
+                  - outside_policy
+                  - low_confidence
+                  - customer_request
+                  - unbundling_block
+                  - data_unavailable
+                targetQueue:
+                  type: string
+      responses:
+        '200':
+          description: Escalation dispatched with conversation, data used, and reason
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/EscalationEventResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Escalate To Advisor
+  /v1/contacts/{sessionId}/advisor-correction:
+    parameters:
+    - $ref: ./contacts.schemas.yaml#/components/parameters/SessionId
+    post:
+      operationId: recordAdvisorCorrection
+      tags:
+      - Contacts
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - wasExplanationCorrect
+              - advisorReference
+              properties:
+                wasExplanationCorrect:
+                  type: boolean
+                advisorReference:
+                  type: string
+                correctExplanation:
+                  type: string
+                suspectedDataDefect:
+                  type: boolean
+      responses:
+        '200':
+          description: Correction recorded; incorrect explanations leave resolution metrics
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/ContactSessionResponse
+        '401':
+          $ref: ./common/responses.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common/responses.yaml#/components/responses/Problem
+      summary: Record Advisor Correction
+  /v1/accounts/{accountId}/context:
+    parameters:
+    - $ref: ./contacts.schemas.yaml#/components/parameters/AccountId
+    get:
+      operationId: getAccountContext
+      tags:
+      - Contacts
+      security:
+      - apiKey: []
+      - bearerAuth: []
+      parameters:
+      - name: purposeId
+        in: query
+        required: true
+        description: Lawful purpose under which the context is read
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Account, meter points, tariff, and reads within the purpose ceiling
+          content:
+            application/json:
+              schema:
+                $ref: ./contacts.schemas.yaml#/components/schemas/AccountContextResponse
+        '403':
+          description: Purpose does not permit reading this context
+          content:
+            application/json:
+              schema:
+                $ref: ./common/problem.yaml#/components/schemas/Problem
+        '404':
+          $ref: ./common/responses.yaml#/components/responses/NotFound
+      summary: Get Account Context
+components:
+  securitySchemes:
+    apiKey:
+      $ref: ./common/security.yaml#/components/securitySchemes/apiKey
+    bearerAuth:
+      $ref: ./common/security.yaml#/components/securitySchemes/bearerAuth
